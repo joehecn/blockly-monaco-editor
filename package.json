@@ -1,0 +1,26 @@
+{
+  "name": "blockly-json",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "blockly": "^12.2.0",
+    "lodash": "^4.17.21",
+    "monaco-editor": "^0.52.2",
+    "vue": "^3.5.18"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.17.20",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "@vue/tsconfig": "^0.7.0",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.6",
+    "vite-plugin-monaco-editor-esm": "^2.0.2",
+    "vue-tsc": "^3.0.4"
+  }
+}
