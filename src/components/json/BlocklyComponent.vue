@@ -31,7 +31,7 @@ const isInitialized = ref(false) // 标记是否已初始化
 const rootBlockPosition = { x: 50, y: 50 }
 
 // 暴露给父组件的方法
-const resizeWorkspace = () => {
+const resizeWorkspace: () => void = () => {
   if (workspace.value && isInitialized.value) {
     // 延迟调整尺寸，确保容器已经稳定
     setTimeout(() => {
