@@ -25,6 +25,9 @@ const emit = defineEmits<{
 const blocklyDiv = ref<HTMLDivElement | null>(null)
 const workspace = shallowRef<Blockly.WorkspaceSvg | null>(null)
 
+// 存储根块的坐标信息
+const rootBlockPosition = { x: 50, y: 50 }
+
 const emitContentChange = debounce((e: Blockly.Events.Abstract) => {
   if (!workspace.value) return
 
@@ -34,6 +37,15 @@ const emitContentChange = debounce((e: Blockly.Events.Abstract) => {
     workspace.value.isDragging()
   ) {
     return
+  }
+
+  // 保存根块的坐标
+  const topBlocks = workspace.value.getTopBlocks(false)
+  if (topBlocks.length > 0) {
+    const position = topBlocks[0].getRelativeToSurfaceXY()
+    // rootBlockPosition = { x: position.x, y: position.y }
+    rootBlockPosition.x = position.x
+    rootBlockPosition.y = position.y
   }
 
   const code = jsonGenerator.workspaceToCode(workspace.value)
@@ -53,7 +65,8 @@ const loadWorkspaceFromModelValue = (value: string) => {
     const code = jsonGenerator.workspaceToCode(workspace.value)
     if (value === code) return
 
-    const data = json2blocklyGenerator.fromJsonString(value)
+    // 使用保存的坐标信息
+    const data = json2blocklyGenerator.fromJsonString(value, rootBlockPosition.x, rootBlockPosition.y)
     Blockly.Events.disable()
     try {
       Blockly.serialization.workspaces.load(data, workspace.value)

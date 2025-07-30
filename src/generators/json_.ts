@@ -1,6 +1,9 @@
 // 定义类型，严格约束 block 结构
 interface BaseBlock {
   type: string
+  // id?: string
+  x?: number
+  y?: number
   fields?: Record<string, string>
   inputs?: Record<string, { block: Block }>
   extraState?: Record<string, any>
@@ -31,9 +34,17 @@ export const json2blocklyGenerator = {
     throw new Error('Unsupported type')
   },
 
-  fromJsonString(jsonStr: string) {
+  fromJsonString(jsonStr: string, x = 0, y = 0) {
     const json = JSON.parse(jsonStr)
     const block = json2blocklyGenerator.fromJson(json)
+
+    // 只为根块添加坐标和ID
+    if (block) {
+      // block.id = 'root_' + Math.random().toString(36).substr(2, 9)
+      block.x = x
+      block.y = y
+    }
+
     return {
       blocks: {
         languageVersion: 0,

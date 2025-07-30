@@ -6,7 +6,7 @@
     "blocks": [
       {
         "type": "object",
-        "statements": {
+        "inputs": {
           "MEMBERS": {
             "block": {
               "type": "member",
