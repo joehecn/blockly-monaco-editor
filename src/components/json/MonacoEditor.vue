@@ -83,6 +83,22 @@ onMounted(() => {
   emit('editor-mounted', toRaw(editorInstance.value)!)
 })
 
+// 暴露给父组件的方法
+const resizeEditor = () => {
+  const rawEditor = toRaw(editorInstance.value)
+  if (rawEditor) {
+    // 强制重新布局
+    setTimeout(() => {
+      rawEditor.layout()
+    }, 50)
+  }
+}
+
+// 暴露方法给父组件
+defineExpose({
+  resizeEditor
+})
+
 // 销毁实例
 onBeforeUnmount(() => {
   toRaw(editorInstance.value)?.dispose()

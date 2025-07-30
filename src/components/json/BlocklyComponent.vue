@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import 'blockly/blocks'
 
-import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { onUnmounted, ref, shallowRef, watch, nextTick } from 'vue'
 import { debounce } from 'lodash'
 
 import * as Blockly from 'blockly/core'
@@ -14,6 +14,7 @@ import { json2blocklyGenerator } from '../../generators/json_.ts'
 
 interface Props {
   modelValue: string
+  parentReady?: boolean // 父组件是否准备好
 }
 
 const props = defineProps<Props>()
@@ -24,9 +25,27 @@ const emit = defineEmits<{
 
 const blocklyDiv = ref<HTMLDivElement | null>(null)
 const workspace = shallowRef<Blockly.WorkspaceSvg | null>(null)
+const isInitialized = ref(false) // 标记是否已初始化
 
 // 存储根块的坐标信息
 const rootBlockPosition = { x: 50, y: 50 }
+
+// 暴露给父组件的方法
+const resizeWorkspace = () => {
+  if (workspace.value && isInitialized.value) {
+    // 延迟调整尺寸，确保容器已经稳定
+    setTimeout(() => {
+      if (workspace.value) {
+        Blockly.svgResize(workspace.value)
+      }
+    }, 50)
+  }
+}
+
+// 暴露方法给父组件
+defineExpose({
+  resizeWorkspace
+})
 
 const emitContentChange = debounce((e: Blockly.Events.Abstract) => {
   if (!workspace.value) return
@@ -60,7 +79,7 @@ const emitContentChange = debounce((e: Blockly.Events.Abstract) => {
 }, 300)
 
 const loadWorkspaceFromModelValue = (value: string) => {
-  if (!workspace.value) return
+  if (!workspace.value || !isInitialized.value) return
   try {
     const code = jsonGenerator.workspaceToCode(workspace.value)
     if (value === code) return
@@ -84,35 +103,56 @@ watch(
   loadWorkspaceFromModelValue
 )
 
-onMounted(() => {
+// 监听父组件状态变化
+watch(
+  () => props.parentReady,
+  (isReady) => {
+    if (isReady && !workspace.value) {
+      initBlockly()
+    }
+  },
+  { immediate: true }
+)
+
+// 初始化 Blockly 的函数
+const initBlockly = () => {
   if (workspace.value) return
 
-  Blockly.setLocale(En as unknown as { [key: string]: string })
+  nextTick(() => {
+    if (!blocklyDiv.value) return
 
-  Blockly.common.defineBlocks(blocks)
+    Blockly.setLocale(En as unknown as { [key: string]: string })
+    Blockly.common.defineBlocks(blocks)
 
-  workspace.value = Blockly.inject(blocklyDiv.value!, {
-    media: '/media',
-    renderer: 'thrasos',
-    toolbox,
-    grid: {
-      spacing: 25,
-      length: 3,
-      colour: '#ccc',
-      snap: true,
-    },
-    scrollbars: true,
-    trashcan: true,
-    zoom: {
-      controls: true,
-      wheel: true
-    },
+    workspace.value = Blockly.inject(blocklyDiv.value, {
+      media: '/media',
+      renderer: 'thrasos',
+      toolbox,
+      grid: {
+        spacing: 25,
+        length: 3,
+        colour: '#ccc',
+        snap: true,
+      },
+      scrollbars: true,
+      trashcan: true,
+      zoom: {
+        controls: true,
+        wheel: true
+      },
+    })
+
+    workspace.value.addChangeListener(emitContentChange)
+
+    // 标记为已初始化
+    isInitialized.value = true
+
+    // 延迟加载内容，确保 workspace 完全准备好
+    setTimeout(() => {
+      loadWorkspaceFromModelValue(props.modelValue)
+    }, 100)
   })
-
-  workspace.value.addChangeListener(emitContentChange)
-
-  loadWorkspaceFromModelValue(props.modelValue)
-})
+}
 
 onUnmounted(() => {
   if (!workspace.value) return
@@ -124,14 +164,28 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="blocklyDiv" ref="blocklyDiv" tabindex="0"></div>
+  <div class="blockly-container">
+    <div class="blocklyDiv" ref="blocklyDiv" tabindex="0" :class="{ 'blockly-initializing': !isInitialized }"></div>
+  </div>
 </template>
 
 <style scoped>
+.blockly-container {
+  height: 100%;
+  width: 100%;
+  position: relative;
+}
+
 .blocklyDiv {
   height: 100%;
   width: 100%;
   min-height: 300px;
   text-align: left;
+  transition: opacity 0.2s ease;
+}
+
+.blockly-initializing {
+  opacity: 0.1;
+  pointer-events: none;
 }
 </style>
