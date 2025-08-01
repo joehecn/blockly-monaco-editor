@@ -10,4 +10,12 @@ export default defineConfig({
       languageWorkers: ['json', 'editorWorkerService'], // 按需配置
     }),
   ],
+  optimizeDeps: {
+    include: ['blockly', 'blockly/core', 'blockly/blocks']
+  },
+  server: {
+    fs: {
+      allow: ['..']
+    }
+  }
 })
