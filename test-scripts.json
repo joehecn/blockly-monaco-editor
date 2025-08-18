@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "test:contracts": "vitest tests/contracts/ --run",
+    "test:integration": "vitest tests/integration/ --run",
+    "test:all": "vitest tests/ --run",
+    "test:watch": "vitest tests/",
+    "test:coverage": "vitest tests/ --coverage --run",
+    "test:summary": "vitest tests/contracts/00-contract-test-summary.test.ts --run"
+  }
+}
