@@ -12,7 +12,7 @@
           <div id="blockly-div" class="editor-content">
             <!-- Blockly 工作区将在这里渲染 -->
           </div>
-          <button @click="simulateBlocklyEdit" class="edit-button">模拟编辑</button>
+          <button class="edit-button" @click="simulateBlocklyEdit">模拟编辑</button>
         </div>
 
         <div class="sync-controls">
@@ -20,10 +20,10 @@
             <span class="state-label">当前状态:</span>
             <span :class="['state-badge', stateClass]">{{ currentState }}</span>
           </div>
-          <button @click="syncData" class="sync-button" :disabled="!canSync">
+          <button class="sync-button" :disabled="!canSync" @click="syncData">
             双向同步
           </button>
-          <button @click="simulateConflict" class="conflict-button">模拟冲突</button>
+          <button class="conflict-button" @click="simulateConflict">模拟冲突</button>
         </div>
 
         <div class="monaco-panel">
@@ -31,7 +31,7 @@
           <div id="monaco-div" class="editor-content">
             <!-- Monaco 编辑器将在这里渲染 -->
           </div>
-          <button @click="simulateMonacoEdit" class="edit-button">模拟编辑</button>
+          <button class="edit-button" @click="simulateMonacoEdit">模拟编辑</button>
         </div>
       </div>
 
@@ -46,14 +46,6 @@
   </div>
 </div>
 </template>
-
-<style scoped>
-.test-section {
-  padding: 20px;
-  margin-top: 30px;
-  border-top: 1px solid #eee;
-}
-</style>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
@@ -125,6 +117,14 @@ onUnmounted(() => {
   stateMachineDemo.stop()
 })
 </script>
+
+<style scoped>
+.test-section {
+  padding: 20px;
+  margin-top: 30px;
+  border-top: 1px solid #eee;
+}
+</style>
 
 <style scoped>
 .app-header {

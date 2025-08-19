@@ -4,7 +4,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { createStateManager } from '../src/modules/state-management';
-import { createDebounceController } from '../src/core/timing-controller';
+import { createDebounceController } from '../src/modules/timing-control';
 import type { SystemState, DataTransformer } from '../src/contracts';
 
 // 测试状态管理器
@@ -30,7 +30,7 @@ describe('StateManager Validation Test', () => {
 describe('TimingController Validation Test', () => {
   it('should create a valid DebounceController instance', () => {
     const callback = vi.fn();
-    const debounceController = createDebounceController(callback);
+    const debounceController = createDebounceController(undefined, callback);
     expect(debounceController).toBeDefined();
     expect(debounceController.isPending()).toBe(false);
   });
@@ -38,9 +38,9 @@ describe('TimingController Validation Test', () => {
   it('should execute callback after delay', async () => {
     vi.useFakeTimers();
     const callback = vi.fn();
-    const debounceController = createDebounceController(callback, { debounceDelay: 100 });
+    const debounceController = createDebounceController(100, callback);
 
-    debounceController.execute('test');
+    debounceController.trigger('test');
     expect(callback).not.toHaveBeenCalled();
     expect(debounceController.isPending()).toBe(true);
 

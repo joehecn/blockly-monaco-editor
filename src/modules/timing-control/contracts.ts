@@ -40,14 +40,23 @@ export interface DebounceController {
 export interface ThrottleController {
   /**
    * 设置节流控制器
-   * @param interval 时间间隔（毫秒）
-   * @param callback 回调函数
+   * @param interval 最小执行间隔(ms)
+   * @param callback 执行回调
+   * @param mode 节流模式:
+   *   'leading' - 前缘(立即执行第一次)
+   *   'trailing' - 后缘(延迟执行最后一次)
+   *   'both' - 混合模式(默认值：同时支持前缘立即执行和后缘延迟执行)
    */
-  setup(interval: number, callback: Function): void;
+  setup(
+    interval: number, 
+    callback: Function, 
+    mode?: 'leading' | 'trailing' | 'both'
+  ): void;
   
   /**
    * 触发节流操作
-   * @param data 传递给回调函数的数据
+   * @param data 传递给回调的数据
+   * @remark 在间隔内的多次调用，仅最后一次参数会被保留
    */
   trigger(data?: any): void;
   

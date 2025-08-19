@@ -58,15 +58,17 @@ description: Blockly Monaco Editor集成系统中负责Blockly与Monaco编辑器
 
 1. **Blockly → Monaco 转换**：
    - 从 Blockly 工作区提取数据
-   - 转换为中间格式（通常是 JSON）
+   - 转换为中间格式（纯 JSON 结构，遵循文档3的权威数据源定义）
    - 处理为 Monaco 编辑器可识别的格式（如 TypeScript 代码）
    - 应用语法高亮和代码折叠等格式设置
 
 2. **Monaco → Blockly 转换**：
    - 从 Monaco 编辑器提取代码
-   - 解析为中间格式（如抽象语法树 AST）
+   - 解析为中间格式（纯 JSON 结构，遵循文档3的权威数据源定义）
    - 转换为 Blockly 工作区可识别的格式
    - 应用 Blockly 特有的配置和样式
+
+> 编辑权控制：数据转换严格遵循文档3的"单一编辑权"原则，DIRTY状态仅允许一侧编辑，ALL_SYNCED状态时双向可编辑。
 
 ### 4.2 转换数据流图
 
@@ -75,31 +77,36 @@ description: Blockly Monaco Editor集成系统中负责Blockly与Monaco编辑器
 │               │      │                        │      │                │
 │  Blockly      │──────▶  数据转换模块         ──────▶  Monaco         │
 │  编辑器       │      │  (DataTransformation)  │      │  编辑器        │
-│               │      │                        │      │                │
+│  编辑权控制   │      │                        │      │  编辑权控制    │
 └───────────────┘      └────────────────────────┘      └────────────────┘
         ▲                          │                          ▲
         │                          ▼                          │
         └──────────────────────────────────────────────────────┘
+                          JSON结构(权威层)
                                双向转换
 ```
+
+> 状态-编辑权映射：严格遵循文档3表2的状态-编辑权规则，确保逻辑上的单一编辑权。
 
 ## 5. 转换策略
 
 ### 5.1 不同数据类型的转换策略
 
+> 重要：所有数据类型的转换都必须经过纯 JSON 中间结构层，这是系统的逻辑权威源（遵循文档3的"JSON权威层"原则）。
+
 #### 5.1.1 JSON 数据类型转换
-- **Blockly → Monaco**：将 Blockly 工作区结构转换为结构化 JSON 对象的字符串表示
-- **Monaco → Blockly**：解析 JSON 字符串并生成对应的 Blockly 块结构
+- **Blockly → Monaco**：将 Blockly 工作区结构转换为纯 JSON 结构，再处理为 JSON 字符串表示
+- **Monaco → Blockly**：解析 JSON 字符串为纯 JSON 结构，再生成对应的 Blockly 块结构
 - **优化重点**：保持 JSON 结构的完整性和字段映射的准确性
 
 #### 5.1.2 Expression 数据类型转换
-- **Blockly → Monaco**：将 Blockly 块序列转换为表达式字符串
-- **Monaco → Blockly**：解析表达式字符串并构建对应的 Blockly 块序列
+- **Blockly → Monaco**：将 Blockly 块序列转换为纯 JSON 结构，再生成表达式字符串
+- **Monaco → Blockly**：解析表达式字符串为纯 JSON 结构，再构建对应的 Blockly 块序列
 - **优化重点**：确保表达式语义一致性和语法正确性
 
 #### 5.1.3 TypeScript 数据类型转换
-- **Blockly → Monaco**：将 Blockly 工作区结构转换为 TypeScript 代码
-- **Monaco → Blockly**：解析 TypeScript 代码并生成对应的 Blockly 块结构
+- **Blockly → Monaco**：将 Blockly 工作区结构转换为纯 JSON 结构，再生成 TypeScript 代码
+- **Monaco → Blockly**：解析 TypeScript 代码为纯 JSON 结构，再生成对应的 Blockly 块结构
 - **优化重点**：代码生成的可读性和类型安全性
 
 ### 5.2 转换错误处理策略
@@ -111,6 +118,7 @@ description: Blockly Monaco Editor集成系统中负责Blockly与Monaco编辑器
 3. **错误恢复**：自动重试3次，在可能的情况下提供部分转换结果，并标识无法转换的部分
 4. **降级策略**：当转换失败时，保持原编辑器状态不变，并回退到DIRTY状态，同时向用户提供提示
 5. **系统集成**：与状态管理模块紧密协作，确保错误状态能够正确映射到系统四状态模型
+6. **版本管理**：同步成功时自动触发创建版本快照（见文档3§4.2）
 
 **系统错误类型映射**：
 - 转换失败：`ErrorType.DATA_TRANSFORM`
@@ -131,11 +139,12 @@ description: Blockly Monaco Editor集成系统中负责Blockly与Monaco编辑器
 - 优化缓存查找和更新性能
 
 ### 6.3 异步处理
-- 对于复杂数据类型的转换，支持异步处理模式
+- 对于复杂数据类型的转换，支持异步处理模式，采用Observable<T>响应式流实现
 - 避免长时间阻塞主线程，确保用户输入响应时间 < 50ms
 - 实现取消操作和进度报告功能
 - 与系统防抖节流机制集成：遵循 `debounceDelay: 300` 和 `throttleInterval: 100` 的契约固定值
 - 转换操作在用户停止编辑300ms后触发（从DIRTY状态进入SYNC_PROCESSING状态）
+- 未来将集成Web Worker后台线程优化策略（遵循文档5§5.4）
 
 ## 7. 模块接口定义
 
@@ -145,16 +154,31 @@ description: Blockly Monaco Editor集成系统中负责Blockly与Monaco编辑器
 // DataTransformer 接口定义了数据转换器的核心能力
 interface DataTransformer<T, U> {
   // 从 Blockly 格式转换为 Monaco 格式
-  fromBlocklyToMonaco(data: T): Promise<TransformationResult<U>>;
+  fromBlocklyToMonaco(data: T): Observable<TransformationResult<U>>;
   
   // 从 Monaco 格式转换为 Blockly 格式
-  fromMonacoToBlockly(data: U): Promise<TransformationResult<T>>;
+  fromMonacoToBlockly(data: U): Observable<TransformationResult<T>>;
   
   // 验证数据是否可以被当前转换器处理
   canHandle(data: unknown): boolean;
   
   // 获取当前转换器支持的数据类型
   getSupportedDataType(): DataType;
+  
+  // 注册重试策略
+  registerRetryPolicy(policy: RetryPolicy): void;
+}
+
+// RetryPolicy 定义了重试策略配置
+interface RetryPolicy {
+  // 最大重试次数
+  maxRetries: number;
+  
+  // 重试间隔（毫秒）
+  retryIntervalMs: number;
+  
+  // 是否指数退避
+  exponentialBackoff: boolean;
 }
 
 // TransformationResult 封装了转换操作的结果
@@ -183,8 +207,8 @@ interface TransformationContext {
   // 转换操作的时间戳
   timestamp: number;
   
-  // 当前系统状态
-  systemState?: SystemState;
+  // 转换来源信息
+  source?: 'blockly' | 'monaco';
 }
 ```
 

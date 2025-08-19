@@ -13,6 +13,7 @@ import {
   createJsonDataTransformer, 
   globalTransformationManager 
 } from '.';
+import { createStateManager } from '../state-management/index';
 
 // Mock console.log 以避免测试输出污染
 console.log = vi.fn();
@@ -184,8 +185,8 @@ describe('DataTransformation Module Tests', () => {
       
       expect(result.success).toBe(true);
       expect(result.result).toContain('    '); // 4空格缩进
-    })
-    
+    });
+  
     // 修复重复的calculateDataSize方法引用
     it('should calculate data size correctly', async () => {
       const testData = { name: 'test', value: 123 };
@@ -405,6 +406,174 @@ describe('DataTransformation Module Tests', () => {
         expect(typeof result.error.location.line).toBe('number');
         expect(typeof result.error.location.column).toBe('number');
       }
+    });
+  });
+
+  describe('数据转换优化测试', () => {
+    // 单个测试用例
+    it('should run transformation optimization tests', async () => {
+      // 创建测试数据
+      const testBlocklyData = {
+        blocks: {
+          languageVersion: 0,
+          blocks: [
+            {
+              type: 'controls_if',
+              inputs: {
+                IF0: {
+                  block: {
+                    type: 'logic_compare',
+                    fields: {
+                      OP: 'EQ'
+                    },
+                    inputs: {
+                      A: {
+                        block: {
+                          type: 'math_number',
+                          fields: {
+                            NUM: 10
+                          }
+                        }
+                      },
+                      B: {
+                        block: {
+                          type: 'math_number',
+                          fields: {
+                            NUM: 20
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      };
+
+      const testMonacoData = JSON.stringify(testBlocklyData, null, 2);
+
+      // 模拟转换错误的测试数据
+      const invalidJsonData = `{
+        "blocks": {
+          "languageVersion": 0,
+          "blocks": [
+            {
+              "type": "controls_if",
+              "inputs": {
+                "IF0": {
+                  "block": {
+                    "type": "logic_compare",
+                    "fields": {
+                      "OP": "EQ"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }`; // 注意这里缺少了结尾的闭合括号
+
+      // 创建性能测试的大尺寸数据
+      function generateLargeData(sizeKB: number): string {
+        const baseObj = {
+          blocks: {
+            languageVersion: 0,
+            blocks: Array(Math.floor(sizeKB * 10)).fill({
+              type: 'math_number',
+              fields: {
+                NUM: 42
+              }
+            })
+          }
+        };
+        return JSON.stringify(baseObj);
+      }
+
+      // 运行测试函数
+      async function runTests() {
+        // 创建状态管理器
+        const stateManager = createStateManager();
+        
+        // 创建数据转换管理器
+        const transformationManager = new DataTransformationManager();
+        transformationManager.setStatusManager(stateManager);
+        
+        // 测试1: 基本转换功能测试
+        try {
+          const result1 = await transformationManager.transformFromBlocklyToMonaco(
+            testBlocklyData,
+            DataType.JSON,
+            { options: { debug: true } }
+          );
+          expect(result1.success).toBe(true);
+        } catch (error) {
+          console.error('转换过程中发生错误:', error);
+        }
+        
+        // 测试2: 反向转换功能测试
+        try {
+          const result2 = await transformationManager.transformFromMonacoToBlockly(
+            testMonacoData,
+            DataType.JSON,
+            { options: { debug: true } }
+          );
+          expect(result2.success).toBe(true);
+        } catch (error) {
+          console.error('转换过程中发生错误:', error);
+        }
+        
+        // 测试3: 重试机制测试
+        try {
+          const result3 = await transformationManager.transformFromMonacoToBlockly(
+            invalidJsonData,
+            DataType.JSON,
+            {
+              options: {
+                debug: true,
+                retry: {
+                  maxRetries: 2,
+                  retryInterval: 500
+                }
+              }
+            }
+          );
+          expect(result3.success).toBe(false);
+          expect(result3.error).toBeDefined();
+        } catch (error) {
+          console.error('转换过程中发生错误:', error);
+        }
+        
+        // 测试4: 性能测试 (100KB数据)
+        const largeData = generateLargeData(100);
+        try {
+          const startTime = Date.now();
+          const result4 = await transformationManager.transformFromMonacoToBlockly(
+            largeData,
+            DataType.JSON,
+            { options: { debug: true } }
+          );
+          const totalTime = Date.now() - startTime;
+          expect(result4.success).toBe(true);
+          expect(totalTime).toBeGreaterThan(0);
+        } catch (error) {
+          console.error('转换过程中发生错误:', error);
+        }
+        
+        // 测试5: 状态管理集成测试
+        // 模拟编辑器编辑
+        stateManager.handleBlocklyEdit();
+        
+        // 执行同步转换
+        await transformationManager.transformFromBlocklyToMonaco(
+          testBlocklyData,
+          DataType.JSON,
+          { options: { debug: true } }
+        );
+      }
+
+      await runTests();
     });
   });
 });

@@ -13,7 +13,7 @@ import { ref, onMounted } from 'vue';
 import { SystemState, DataType } from '@contracts';
 import type { DataTransformer } from '@contracts';
 import { createStateManager } from '@/modules/state-management';
-import { createDebounceController } from '@/core/timing-controller';
+import { createDebounceController } from '@/modules/timing-control';
 
 // 测试状态管理契约
 const state = ref<SystemState>(SystemState.ALL_SYNCED);
@@ -27,7 +27,7 @@ const mockTransformer: Partial<DataTransformer<any, any>> = {
 // 测试核心功能导入
 const stateManager = createStateManager();
 const stateManagerState = ref<string>(stateManager.getCurrentState());
-const debounceController = createDebounceController(() => {
+const debounceController = createDebounceController(undefined, () => {
   console.log('防抖函数执行了!');
 });
 

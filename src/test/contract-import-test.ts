@@ -6,7 +6,7 @@ import { SystemState } from '../modules/state-management/contracts';
 import { DataType } from '../modules/data-transformation/contracts';
 import type { DataTransformer } from '../modules/data-transformation/contracts';
 import { createStateManager } from '../modules/state-management';
-import { createDebounceController } from '../core/timing-controller';
+import { createDebounceController } from '../modules/timing-control';
 
 // 测试状态管理契约
 console.log('测试状态管理契约:');
@@ -25,7 +25,7 @@ console.log('\n测试核心功能导入:');
 const stateManager = createStateManager();
 console.log(`状态管理器初始状态: ${stateManager.getCurrentState()}`);
 
-const debounceController = createDebounceController(() => {
+const debounceController = createDebounceController(undefined, () => {
   console.log('防抖函数执行了!');
 });
 console.log(`防抖控制器创建: ${!!debounceController}`);

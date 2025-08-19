@@ -9,6 +9,8 @@ description: 实现防抖节流机制，控制用户操作触发频率和同步�
 
 时序控制模块负责实现防抖节流机制，控制用户操作的触发频率和同步时机，是三层双流状态模型中保证用户体验和系统性能的关键组件。
 
+> ⚠️ **核心契约约束：** 主同步流程必须使用固定300ms防抖/100ms节流（见4-模块契约.md）。自定义参数仅适用于非核心场景。
+
 ## 主要功能
 
 - **防抖控制**：延迟用户操作的触发，避免频繁同步带来的性能问题
@@ -67,19 +69,23 @@ interface TimingController {
 
 ```typescript
 import { createTimingController } from './timing-control';
+import { SystemState } from '../state-management/contracts';
 
-// 创建带自定义配置的时序控制器
+// 创建带自定义配置的时序控制器（非核心场景）
 const timingController = createTimingController({
-  debounceDelay: 300,  // 防抖延迟300ms
-  throttleInterval: 100 // 节流间隔100ms
+  debounceDelay: 300,  // 防抖延迟300ms（核心场景必须使用此值）
+  throttleInterval: 100 // 节流间隔100ms（核心场景必须使用此值）
 });
 
-// 设置防抖回调
+// 设置防抖回调 - 状态转换示例
 const syncFunction = () => {
   // 执行同步逻辑
 };
 
-timingController.debounce.setup(300, syncFunction);
+// 示例：防抖触发状态转换（BLOCKLY_DIRTY → SYNC_PROCESSING）
+timingController.debounce.setup(300, () => {
+  stateMachine.transitionTo(SystemState.SYNC_PROCESSING); // 引用文档3§2
+});
 
 // 在用户编辑时触发防抖
 const handleUserEdit = () => {
@@ -139,6 +145,26 @@ const cleanup = () => {
 - 支持最小间隔时间限制：50ms
 - 提供可触发检查和状态清除功能
 
+## 节流机制行为说明
+
+### 核心特性
+- **首次调用**：立即执行（前缘模式）
+- **后续调用**：
+  - 在间隔期内：不执行但保存最新参数
+  - 超过间隔期：立即执行
+- **密集调用**：间隔结束后执行最后一次调用参数
+- **参数处理**：总是使用最近一次调用的参数
+
+### 执行时序
+```plain
+调用时刻: 0ms    50ms    120ms   150ms   200ms   250ms
+调用参数: call1  call2   call3   call4   call5   call6
+执行时刻: 0ms                  120ms          250ms
+执行参数: call1               call3          call6
+```
+
+> **关键原则**：节流通过在前沿（立即执行）和后缘（延迟执行）触发来限制调用频率，确保了响应速度与最终状态不会丢失。
+
 ### 编辑替换机制
 - 支持设置、处理和清除待处理值
 - 提供状态检查功能，便于集成到同步流程
@@ -147,6 +173,8 @@ const cleanup = () => {
 - 单例模式设计，全局唯一实例
 - 支持命名控制器管理，便于模块化应用
 - 提供批量重置和销毁功能，优化资源管理
+
+> 🔄 **状态恢复集成：** 超时错误必须触发STATE_RECOVERED事件（见2-核心原则.md）。
 
 ## 实现细节
 
@@ -169,6 +197,7 @@ const cleanup = () => {
 - 所有定时器操作都经过优化，避免不必要的内存占用
 - 提供销毁和清理方法，确保资源正确释放
 - 支持批量操作，减少重复代码和维护成本
+- **参数调整影响：** 防抖/节流参数直接影响系统响应速度和资源消耗。在非核心场景调整参数时，需谨慎评估性能影响和用户体验平衡。核心同步流程必须保持300ms/100ms的固定值以确保系统稳定性。
 
 ## 错误处理
 
